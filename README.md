@@ -1,56 +1,61 @@
-# Build a Data Application with Streamlit
+# Securing SQL Server
 
-This repository provides the supporting code for my presentation entitled [Build a Data Application with Streamlit](https://www.catallaxyservices.com/presentations/build-a-data-application-with-streamlit/).
+This repository provides the supporting code for my presentation entitled [Securing SQL Server](https://www.catallaxyservices.com/presentations/securing-sql-server/).
 
-I have also made [a YouTube playlist of videos](https://www.youtube.com/playlist?list=PLeWL8zChJ2uuM9ekUgR6pLjxXVfv_IVZb) in case you would prefer the content in approximately 20-minute chunks.
+## Repository Structure
 
-## Branching
-
-This repository includes a series of branches, starting with `01-intro` and ending with `master`. The idea is to traverse each branch in order. This will allow you to see the Chicago Parking Tickets application as we build it. Each branch represents the **completed** code for that section.
+- `code/sql/` - Demo SQL scripts covering TDE, backup encryption, column-level security, row-level security, Always Encrypted, and data classification
+- `code/tls/` - Scripts for configuring TLS on Linux and Windows
+- `CHECKLIST.md` - A practical SQL Server hardening checklist
 
 ## Running the Code
 
-If you are running things locally, follow the relevant cheat sheet in the Cheat Sheets folder.
+### Building the Docker Container Image
 
-## Requirements
+The demo scripts run against SQL Server 2025 in a Docker container. Build the image from the `code/` directory:
 
-This 
-
-### Secrets
-
-The code in this repository relies on a file that you'll have to create in `code\.streamlit\secrets.toml`. Note that you will need to create the `.streamlit` directory as well as the file. This file will contain all of the secrets that you'll need to follow along. Here is a sample of how it should look:
-
-```toml
-[db]
-connection_string="DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost;DATABASE=ChicagoParkingTickets;Trusted_Connection=yes"
-# Replace this connection string with whatever is appropriate for your environment.
-
-[aoai]
-endpoint = "YOUR ENDPOINT"
-key = "YOUR KEY"
-deployment_name = "YOUR DEPLOYMENT NAME"
-
-[search]
-endpoint = "YOUR ENDPOINT"
-key = "YOUR KEY"
-index_name = "YOUR INDEX NAME"
-
-[speech]
-key = "YOUR KEY"
-region = "YOUR REGION"
+```bash
+cd code
+docker build -t securing-sql-server .
 ```
 
-### Parking Tickets Analysis
+### Running the Container
 
-To run the parking ticket analysis application, you will need SQL Server and a copy of [the Chicago Parking Tickets database](https://sqlsunday.com/2022/12/05/new-demo-database/). You may also need to update the SQL Server connection string in `code\.streamlit\secrets.toml` if you are not running SQL Server using Windows authentication on localhost.
+Pass the required environment variables when starting the container:
 
-### Azure OpenAI Integration
+```bash
+docker run -e "ACCEPT_EULA=Y" \
+  -e "MSSQL_SA_PASSWORD=YourStrongPassword!" \
+  -e "MSSQL_PID=Developer" \
+  -p 1433:1433 \
+  --name securing-sql-server \
+  -d securing-sql-server
+```
 
-In order to try out the Azure OpenAI integration, you will need the following resources:
+Replace `YourStrongPassword!` with a password that meets the [SQL Server password policy](https://learn.microsoft.com/en-us/sql/relational-databases/security/password-policy) (at least 10 characters, including uppercase, lowercase, digits, and symbols).
 
-1. An Azure OpenAI endpoint. You will want to copy the URL endpoint for Azure OpenAI, as well as one of your access keys.
-2. Create a GPT-4 deployment named something like "gpt-4"
-3. Azure AI Search
-4. Azure AI Speech
+### Demo Scripts
 
-Note that [Azure OpenAI no longer requires explicit approval](https://learn.microsoft.com/en-us/legal/cognitive-services/openai/limited-access) for using the service in the scenarios we cover. You should not need explicit approval in order to use Azure OpenAI on your Azure subscription.
+Once the container is running, demo scripts are available inside the container at `/var/opt/mssql/scripts/sql/`. You can connect to the SQL Server instance on `localhost,1433` using the `sa` account and run the scripts in order:
+
+| Scripts | Topic |
+|---------|-------|
+| 10-12 | Transparent Data Encryption (TDE) |
+| 20-21 | Backup Encryption |
+| 30-32 | Column-Level Security |
+| 40-42 | Row-Level Security |
+| 50-53 | Always Encrypted with Azure Key Vault |
+| 60 | Data Classification |
+| 99 | Cleanup |
+
+### TLS Configuration
+
+The `code/tls/` directory contains scripts for configuring TLS encryption on SQL Server:
+
+- `setup-tls-linux.sh` - Linux setup script
+- `Setup-TLS-Windows.ps1` - Windows PowerShell setup script
+- `TLS-Setup-Windows-UI.md` - Instructions for configuring TLS via the Windows UI
+
+### Always Encrypted with Azure Key Vault
+
+Scripts 50-53 require an Azure Key Vault instance. See the shell and PowerShell scripts in `code/sql/` prefixed with `50` for setup instructions.

@@ -1,9 +1,5 @@
 FROM mcr.microsoft.com/mssql/server:2025-latest
 
-ENV ACCEPT_EULA=Y
-ENV MSSQL_SA_PASSWORD=SecureSQLServer2025!
-ENV MSSQL_PID=Developer
-
 # Create directories for demo scripts inside the container
 RUN mkdir -p /var/opt/mssql/scripts/sql /var/opt/mssql/scripts/tls
 
