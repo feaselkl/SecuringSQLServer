@@ -1,7 +1,8 @@
 --Column Level Security
 --3 - Test Procedures
 --The purpose of this script is to test the stored procedures we created in the CLSTest database.
-
+USE [CLSTest]
+GO
 EXEC dbo.MessageLog_InsertMessage
     @MessageText = 'Greetings to Alice',
     @MessageSender = 'Bob',

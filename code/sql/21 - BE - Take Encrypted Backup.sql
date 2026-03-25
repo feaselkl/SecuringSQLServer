@@ -8,7 +8,7 @@
 
 USE [master]
 GO
-BACKUP DATABASE [TDETest] TO  DISK = N'C:\SQLServer\Backup\TDETest.bak'
+BACKUP DATABASE [TDETest] TO  DISK = N'/tmp/TDETest.bak'
 	WITH FORMAT, INIT,  MEDIANAME = N'TDETest',
 	NAME = N'TDETest-Full Database Backup', SKIP, NOREWIND, NOUNLOAD,
 	ENCRYPTION(ALGORITHM = AES_256, SERVER CERTIFICATE = [BackupEncryptionCertificate]),
@@ -18,6 +18,6 @@ GO
 --We should also test restoration of the database:
 --Note that we don't need to specify a certificate here; it already exists on the instance.
 ALTER DATABASE [TDETest] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
-RESTORE DATABASE [TDETest] FROM  DISK = N'C:\SQLServer\Backup\TDETest.bak' WITH  FILE = 1,  NOUNLOAD,  REPLACE,  STATS = 5
+RESTORE DATABASE [TDETest] FROM  DISK = N'/tmp/TDETest.bak' WITH  FILE = 1,  NOUNLOAD,  REPLACE,  STATS = 5
 ALTER DATABASE [TDETest] SET MULTI_USER
 GO

@@ -11,19 +11,29 @@ GO
 USE [CLSTest]
 GO
 --We need a database master key to encrypt our symmetric keys.
+IF NOT EXISTS
+(
+	SELECT
+		*
+	FROM sys.symmetric_keys
+	WHERE
+		name = N'##MS_DatabaseMasterKey##'
+)
+BEGIN
+	--If you do not already have a master key on this instance, create one now:
+	CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'This is where we put the CLSTest master key password.';
+END
+ELSE
+BEGIN
+	-- If you do already have one, open the master key:
+	OPEN MASTER KEY DECRYPTION BY PASSWORD = 'This is where we put the CLSTest master key password.';
+END
+GO
 SELECT
 	*
 FROM sys.symmetric_keys
 WHERE
 	name = N'##MS_DatabaseMasterKey##';
-
---If you do not already have a master key on this instance, create one now:
-CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'This is where we put the CLSTest master key password.';
-GO
--- If you do already have one, open the master key:
-OPEN MASTER KEY DECRYPTION BY PASSWORD = 'This is where we put the CLSTest master key password.';
-GO
-
 
 CREATE TABLE dbo.MessageLog
 (
@@ -42,7 +52,7 @@ CREATE SYMMETRIC KEY CLSTestKey
     ENCRYPTION BY CERTIFICATE CLSTestCert;
 GO
 --Back up the database master key and certificate we created.
-BACKUP MASTER KEY TO FILE = 'C:\Temp\MasterKey_CLSTest.key' ENCRYPTION BY PASSWORD = 'This is the database master key for the CLSTest database.';
+BACKUP MASTER KEY TO FILE = '/tmp/MasterKey_CLSTest.key' ENCRYPTION BY PASSWORD = 'This is the database master key for the CLSTest database.';
 GO
-BACKUP CERTIFICATE [CLSTestCert] TO FILE = 'C:\Temp\CLSTestCert.cert';
+BACKUP CERTIFICATE [CLSTestCert] TO FILE = '/tmp/CLSTestCert.cert';
 GO

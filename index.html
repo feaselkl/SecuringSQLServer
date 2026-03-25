@@ -53,15 +53,14 @@
 				
 				<section data-background-image="presentation/assets/background/motivation.jpg" data-background-opacity="0.2">
 					<h3>Motivation</h3>
-					
-					<p>My goals in this talk:</p>
-					
-					<ul>
-						<li>Provide a high-level view of the surface area for security in SQL Server</li>
-						<li>Focus on specific functionality to help secure SQL Server instances</li>
-						<li>Demonstrate implementation of certain functionality</li>
-						<li>Occasionally contrast on-premises SQL Server with Azure SQL Database and Azure SQL Managed Instance</li>
-					</ul>
+
+					<p>By the end of this talk, you will have:</p>
+
+					<ol>
+						<li>A defense-in-depth mental model for SQL Server security</li>
+						<li>Working demo scripts you can run in your own environment</li>
+						<li>A practical checklist of hardening steps to take back to work</li>
+					</ol>
 				</section>
 
 				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
@@ -79,11 +78,15 @@
 				</section>
 
 				<section data-background-image="presentation/assets/background/focalpoints.jpg" data-background-opacity="0.2">
-					<h3>Focus Points</h3>
+					<h3>Over the Target</h3>
 					
-					<p>In this talk, we will focus on SQL Server, whether on-premises or in a cloud.</p>
-
-					<p>Additionally, we will look at <strong>some</strong> functionality in Azure SQL Database and Azure SQL Managed Instance. Most of the content will overlap.</p>
+					<p>Our target for this talk:</p>
+					
+					<ul>
+						<li>SQL Server database administrator or infrastructure engineer</li>
+						<li>Primarily on-premises SQL Server (with some Azure SQL Database or Managed Instance overlap)</li>
+						<li>Some familiarity with SQL Server security concepts but not an expert</li>
+					</ul>
 				</section>
 
 				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
@@ -205,7 +208,7 @@
 				<section data-background-image="presentation/assets/background/wrongway.jpg" data-background-opacity="0.2">
 					<h3>When Not To Use Virtual Accounts</h3>
 					<p>You cannot use a virtual account on a cluster.  You do need a valid domain account for clustered services.</p>
-					<p>You do not need to use virtual accounts to be secure; you can use valid domain accounts.  Virtual accounts are useful, however, because they enforce separation of accounts between servers--an attacker only has rights to the exploited SQL Server instance rather than all instances on your domain.</p>
+					<p>Virtual accounts are not <strong>necessary</strong> to be secure; regular domain accounts work fine. But virtual accounts enforce separation between servers: an attacker who compromises one instance only has rights to that instance, not every instance on your domain.</p>
 				</section>
 
 				<section data-background-image="presentation/assets/background/backpacks.jpg" data-background-opacity="0.2">
@@ -217,31 +220,41 @@
 				<section data-background-image="presentation/assets/background/devices.jpg" data-background-opacity="0.2">
 					<h3>Microsoft Entra ID</h3>
 					<p>If you are using Azure SQL Database or Managed Instance, you cannot use Active Directory for logins. You must use Microsoft Entra ID.</p>
-					<p>If you have SQL Server on an Azure VM or are using an Azure Arc-enabled SQL Server VM, you can use Entra ID for authentication.</p>
-					<p>Entra ID is just as good as Active Directory for SQL Server authentication.</p>
-				</section>
-
-				<section data-background-image="presentation/assets/background/sketch.jpg" data-background-opacity="0.2">
-					<h3>Entra Managed Identities</h3>
-					<p>Azure SQL DB and Managed Instance can make use of managed identities, which allow the database access to other resources without using an explicit account.</p>
-					<p>This is similar to an Active Directory managed service account or gMSA: you do not need to manage passwords. You can define a managed identity as an existing Entra ID account (user-assigned) or allow Azure to manage everything (system-assigned).</p>
+					<p>If you have SQL Server on an Azure VM or are using an Azure Arc-enabled SQL Server VM, you can use Entra ID for authentication. This includes managed identity authentication, meaning you can eliminate password-based service accounts even outside of Azure.</p>
 				</section>
 				
 				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
 					<h3>Disable Named Pipes</h3>
-					<p>Use the Configuration Manager to disable Named Pipes. Services on the same machine (like SSIS) may use Shared Memory to connect. Most applications will use TCP/IP to connect. Named Pipes is most useful for apps designed around NetBIOS and you likely will never want to use it.</p>
+					<p>Use Configuration Manager to disable Named Pipes.</p>
+					<ul>
+						<li>Local services (like SSIS) can use Shared Memory</li>
+						<li>Applications should connect via TCP/IP</li>
+						<li>Named Pipes is a NetBIOS holdover you almost certainly don't need</li>
+					</ul>
 					<p><img src="presentation/assets/image/Configuration_3_DisableNamedPipes.png" height="317" /></p>
 				</section>
 
 				<section data-background-image="presentation/assets/background/thinking-emoji.jpg" data-background-opacity="0.2">
 					<h3>What About Non-Standard Ports?</h3>
-					<p>Some people argue that you should configure SQL Server to listen on non-standard ports (TCP 1433). This is not bad advice, but does not provide much benefit by itself; an attacker can still use other methods to obtain information on the active port, such as running a port scan.</p>
+					<p>Some people argue you should change SQL Server's default port (TCP 1433). This is not bad advice, but provides limited benefit on its own. An attacker can still find your port with a simple port scan.</p>
 					<p>This could be useful in conjunction with honeyports, a topic outside the scope of this talk.</p>
+				</section>
+
+				<section data-background-image="presentation/assets/background/server-room.jpg" data-background-opacity="0.2">
+					<h3>Contained Databases</h3>
+					<p>A contained database is one that is isolated from other databases and from the SQL Server instance that hosts it. Users authenticate directly to the database rather than at the instance level.</p>
+
+					<p>This reduces attack surface in two ways:</p>
+					<ol>
+						<li>Eliminates dependency on instance-level logins, reducing the value of compromising the instance</li>
+						<li>Makes databases more portable, so you can move them between instances without re-creating logins</li>
+					</ol>
+					<p>Enable with <code>sp_configure 'contained database authentication', 1</code>.</p>
 				</section>
 
 				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
 					<h3>Agenda</h3>
-					
+
 					<ol>
 						<li>Setting Expectations</li>
 						<li>Installation and Configuration</li>
@@ -277,34 +290,29 @@
 							<th>Extended Support</th>
 						</tr>
 						<tr>
+							<td>2025</td>
+							<td>January 6, 2031</td>
+							<td>January 6, 2036</td>
+						</tr>
+						<tr>
 							<td>2022</td>
 							<td>January 11, 2028</td>
 							<td>January 11, 2033</td>
 						</tr>
 						<tr>
 							<td>2019</td>
-							<td>February 28, 2025</td>
+							<td><s>February 28, 2025</s></td>
 							<td>January 8, 2030</td>
 						</tr>
 						<tr>
 							<td>2017</td>
-							<td>October 11, 2022</td>
+							<td><s>October 11, 2022</s></td>
 							<td>October 12, 2027</td>
 						</tr>
 						<tr>
 							<td>2016</td>
-							<td>July 13, 2021</td>
+							<td><s>July 13, 2021</s></td>
 							<td>July 14, 2026</td>
-						</tr>
-						<tr>
-							<td>2014</td>
-							<td>July 9, 2019</td>
-							<td>July 9, 2024</td>
-						</tr>
-						<tr>
-							<td>2012</td>
-							<td>July 11, 2017</td>
-							<td>July 12, 2022</td>
 						</tr>
 					</table>
 				</section>
@@ -361,9 +369,21 @@
 					<img src="presentation/assets/image/SQLServerPatchNotes.png" height="500" />
 				</section>
 
+				<section data-background-image="presentation/assets/background/checklist.jpg" data-background-opacity="0.2">
+					<h3>A Practical Patching Strategy</h3>
+
+					<ol>
+						<li>Wait 2-3 weeks after a CU release before applying. This gives the community time to find showstopper bugs.</li>
+						<li>Check <a href="https://sqlserverversions.com">sqlserverversions.com</a> and the SQL Server release blog for known issues.</li>
+						<li>Apply the CU in a non-production environment first and run your test suite.</li>
+						<li>Apply the CU in production during a scheduled maintenance window.</li>
+						<li>For GDRs (critical security patches), apply as soon as feasible after testing.</li>
+					</ol>
+				</section>
+
 				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
 					<h3>Agenda</h3>
-					
+
 					<ol>
 						<li>Setting Expectations</li>
 						<li>Installation and Configuration</li>
@@ -479,7 +499,7 @@
 				</section>
 
 				<section data-background-image="presentation/assets/background/records.jpg" data-background-opacity="0.2">
-					<h3>Row Level Security</h3>
+					<h3>Row-Level Security</h3>
 					
 					<p>SQL Server supports segmenting records in a table based on user permissions.</p>
 					
@@ -491,25 +511,27 @@
 				</section>
 
 				<section data-background-image="presentation/assets/background/caution.jpg" data-background-opacity="0.2">
-					<h3>Row Level Security Considerations</h3>
+					<h3>Row-Level Security Considerations</h3>
 
 					<ol>
 						<li>Insert statements are not protected.</li>
 						<li>Queries now introduce a table-valued function which runs each time. This can be a significant performance drag.</li>
-						<li>There are side-channel attacks which users can perform to get an idea of what data is available, even if they can’t see the data itself.</li>
+						<li>Side-channel attacks can give users an idea of what data is available, even if they can’t see the data itself.</li>
 					</ol>
 				</section>
 
 				<section data-background-image="presentation/assets/background/skeleton-thinking.jpg" data-background-opacity="0.2">
-					<h3>Row Level Security - When to Use</h3>
+					<h3>Row-Level Security - When to Use</h3>
 
-					<p>Use row-level security when you need to segment user access within a table and can afford the performance hit of running a table-valued function on queries.</p>
-
-					<p>This is not a viable mechanism for security on a very busy transactional system, but could potentially work well in a relational warehouse scenario.</p>
+					<ul>
+						<li>Need to segment user access within a table</li>
+						<li>Can afford the performance hit of running a table-valued function on queries</li>
+						<li>Moderate number of transactions (e.g., warehouse vs busy OLTP system)</li>
+					</ul>
 				</section>
 
 				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<h3>Row Level Security</h3>
+					<h3>Row-Level Security</h3>
 
 					<p><img src="presentation/assets/image/Diagrams/SecuringSQLServer_6.png" /></p>
 				</section>
@@ -517,9 +539,9 @@
 				<section data-background-image="presentation/assets/background/server-rack.jpg" data-background-opacity="0.2">
 					<h3>Always Encrypted</h3>
 
-					<p>Always Encrypted allows you to encrypt sensitive columns so that database users, even sysadmins, cannot view certain sensitive columns. Connecting applications need a copy of the private key, allowing them to decrypt results. When implemented correctly, the only method to view sensitive data is through legitimate application access.</p>
+					<p>Always Encrypted protects sensitive columns from everyone, including sysadmins. Only applications with the private key can decrypt the data.</p>
 
-					<p>Historically, we have been able to roll our own encryption solutions, encrypting data in applications before storing it in SQL Server. Always Encrypted makes this process transparent to application developers.</p>
+					<p>This replaces "roll your own" application-side encryption with a built-in, transparent solution. The application doesn't need custom encrypt/decrypt logic.</p>
 				</section>
 
 				<section data-background-image="presentation/assets/background/scale2.jpg" data-background-opacity="0.2">
@@ -564,6 +586,10 @@
 					</table>
 				</section>
 
+				<section data-background-image="presentation/assets/background/demo.jpg" data-background-opacity="0.2">
+					<h3>Demo Time</h3>
+				</section>
+
 				<section data-background-image="presentation/assets/background/train.jpg" data-background-opacity="0.2">
 					<h3>Performance on the Client</h3>
 
@@ -575,9 +601,9 @@
 				<section data-background-image="presentation/assets/background/ram.jpg" data-background-opacity="0.2">
 					<h3>Secured Enclaves</h3>
 
-					<p>Secured enclaves are a new feature in SQL Server 2019 and Azure SQL Database which allow you to perform operations on encrypted data without decrypting it first.</p>
-					
-					<p>This allows you to perform operations such as aggregations and joins on encrypted data without needing to decrypt it first.</p>
+					<p>Secured enclaves allow you to perform operations on encrypted data without decrypting it first, including pattern matching, range comparisons, sorting, and joins.</p>
+
+					<p>SQL Server 2019 introduced this with Host Guardian Service (HGS) enclaves. SQL Server 2025 adds <strong>VBS (Virtualization-Based Security) enclaves</strong>, which do not require HGS infrastructure. This dramatically simplifies deployment.</p>
 				</section>
 
 				<section data-background-image="presentation/assets/background/caution.jpg" data-background-opacity="0.2">
@@ -602,7 +628,7 @@
 
 				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
 					<h3>Always Encrypted</h3>
-					
+
 					<p><img src="presentation/assets/image/Diagrams/SecuringSQLServer_7.png" /></p>
 				</section>
 
@@ -637,40 +663,34 @@
 
 					<p>In corporate environments, you typically see perimeter firewalls: the outside world is scary and inside the boundaries is fine.</p>
 
-					<p>In cloud environments, you often see on-device firewalls in order to provide finer-grained access to specific cloud services.</p>
+					<p>In cloud (or zero-trust) environments, you often see on-device firewalls in order to provide finer-grained access to specific cloud services.</p>
 				</section>
 
 				<section data-background-image="presentation/assets/background/thinking-emoji.jpg" data-background-opacity="0.2">
 					<h3>Firewalls on my SQL Server Machine?</h3>
 
-					<p>Firewalls do consume some resources and DBAs tend not to be particularly familiar with the specifics of firewalls. For those reasons,
-						we typically do not see firewalls on the machines hosting SQL Server, and we typically disable Windows Firewall.
-					</p>
+					<p>Firewalls consume some resources and most DBAs aren't firewall experts. In practice, Windows Firewall is often disabled on SQL Server hosts.</p>
 
-					<p>For Azure SQL Database, you always want the firewall to be on. Save for very specific circumstances, full public access to your SQL Server
-						instance is a very bad idea.
-					</p>
+					<p>For Azure SQL Database, always keep the firewall on. Full public access to your instance is almost never acceptable.</p>
 				</section>
 
 				<section data-background-image="presentation/assets/background/cabling.jpg" data-background-opacity="0.2">
 					<h3>Subnets, VLANs, and VNets</h3>
 
-					<p>A powerful way to protect SQL Server is to control which machines are allowed to access it. You can segment machines on a network in various ways.
-						In hardware, these are subnets. With virtual machines, these are VLANs. In Azure, these are VNets.</p>
-
-					<p>The idea of each is simple: only machines from specific IP addresses are allowed to communicate with machines on this network segment.</p>
-
-					<p>Ex: given a subnet for your SQL Server machines and a subnet for your application servers,
-						you can allow only the application servers to access the SQL Server machines.</p>
+					<p>Control which machines can reach SQL Server by segmenting your network:</p>
+					<ul>
+						<li><strong>On-premises:</strong> subnets and VLANs</li>
+						<li><strong>Azure:</strong> VNets and Network Security Groups</li>
+					</ul>
+					<p>The idea is simple: only approved machines (e.g., your app servers) can talk to SQL Server.</p>
 				</section>
 
 				<section data-background-image="presentation/assets/background/traffic.jpg" data-background-opacity="0.2">
 					<h3>Outbound Traffic</h3>
 
-					<p>In general, there is little reason to enable outbound traffic from your SQL Server to the broader internet. Most functionality in SQL Server can run on an isolated machine without Internet access.</p>
+					<p>SQL Server rarely needs outbound internet access. Keep it isolated where possible.</p>
 
-					<p>There are specific exceptions, such as if you are using SQL Server Machine Learning Services and want to install R or Python packages.
-						Also, keep in mind the need to patch and how you will be able to move patches onto the server for installation.</p>
+					<p>Exceptions: REST APIs (if using them) and patching. Plan how you will deliver CUs to an isolated server.</p>
 				</section>
 
 				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
@@ -681,7 +701,7 @@
 
 				<section data-background-image="presentation/assets/background/telephones.jpg" data-background-opacity="0.2">
 					<h3>TLS Encryption</h3>
-					<p>SQL Server offers the ability to use a TLS certificate for encrypting connections. This provides security for data in transit over a network ("data in motion") and prevents attackers from using packet sniffing tools to read data packets.</p>
+					<p>TLS certificates encrypt connections between clients and SQL Server, protecting data in transit. Without TLS, an attacker with network access can sniff packets and read your data.</p>
 					<p>There are two viable certificate options available:
 						<ul>
 							<li>Self-signed certificate (ONLY FOR TESTING!)</li>
@@ -691,84 +711,25 @@
 					<p>Using an EA to generate certificates is outside the scope of this talk.</p>
 				</section>
 
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/1 - Server Certificates.png" height="550" />
+				<section data-background-image="presentation/assets/background/demo.jpg" data-background-opacity="0.2">
+					<h3>Demo Time</h3>
 				</section>
 
 				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/2 - Create Self-Signed Certificate.png" height="550" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/3 - Specify Name.png" height="550" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/4 - New Cert Created.png" height="550" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/11 - Open MMC.png" height="550" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/12 - Add Certificates.png" height="550" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/13 - Computer Account.png" height="550" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/14 - Local Computer.png" height="550" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/15 - Certificate Available.png" height="550" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/16 - Manage Private Keys.png" height="450" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/17 - Add Account.png" height="550" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/18 - Add Service Account.png" height="450" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/19 - Service Account Read Permissions.png" height="550" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/21 - Network Protocol Properties.png" height="450" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/22 - Select Certificate.png" height="550" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/23 - Force Encryption.png" height="550" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/24 - Restart Service.png" height="350" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/31 - Expand Options.png" height="550" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<img src="presentation/assets/image/SSL Certificate/33 -Encrypt Connection.png" height="550" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
+					<h3>TLS Setup: Verify in SSMS</h3>
+					
 					<img src="presentation/assets/image/SSL Certificate/34 - New SSMS.png" height="550" />
+				</section>
+
+				<section data-background-image="presentation/assets/background/train.jpg" data-background-opacity="0.2">
+					<h3>TLS 1.3 in SQL Server 2025</h3>
+					<p>SQL Server 2025 adds support for <strong>TLS 1.3</strong>, which provides:</p>
+					<ul>
+						<li>Faster handshakes (1-RTT vs 2-RTT)</li>
+						<li>Removal of obsolete cipher suites (RC4, 3DES, SHA-1)</li>
+						<li>Improved forward secrecy by default</li>
+					</ul>
+					<p>SQL Server 2025 also enhances <strong>strict connection encryption mode</strong>, which forces TDS 8.0 with TLS handshake before any SQL Server communication occurs.</p>
 				</section>
 				
 				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
@@ -793,71 +754,44 @@
 
 				<section data-background-image="presentation/assets/background/magnifying-glass.jpg" data-background-opacity="0.2">
 					<h3>Data Discovery and Classification</h3>
-					<p>SQL Server has built-in capabilities around data discovery and classification. The purpose of this is to track
-						sensitive data in your databases, not to limit access to that data.
+					<p>SQL Server has built-in capabilities around data discovery and classification. The purpose of this is to track sensitive data in your databases, not to limit access to that data.
+					</p>
+					<p>You can classify columns via the SSMS UI, but starting with SQL Server 2019, you can also use T-SQL, which is repeatable, scriptable, and works on Linux.
 					</p>
 				</section>
 
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<h3>Data Discovery and Classification</h3>
-					<img src="presentation/assets/image/DataClassification1.png" height="500" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<h3>Data Discovery and Classification</h3>
-					<img src="presentation/assets/image/DataClassification2.png" height="400" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<h3>Data Discovery and Classification</h3>
-					<img src="presentation/assets/image/DataClassification3.png" height="500" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<h3>Data Discovery and Classification</h3>
-					<img src="presentation/assets/image/DataClassification4.png" height="250" />
-				</section>
-
-				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
-					<h3>Data Discovery and Classification</h3>
-					<img src="presentation/assets/image/DataClassification5.png" height="500" />
+				<section data-background-image="presentation/assets/background/demo.jpg" data-background-opacity="0.2">
+					<h3>Demo Time</h3>
 				</section>
 
 				<section data-background-image="presentation/assets/background/plan.jpg" data-background-opacity="0.2">
 					<h3>Microsoft Purview Information Protection</h3>
-					<p>If you have Microsoft Purview, you can use it to classify data in SQL Server. This also allows you to apply sensitivity labels to data,
-						and tools like Power BI will automatically apply those labels to data in reports.</p>
+					<p>Microsoft Purview can classify data across your SQL Server estate. Sensitivity labels flow downstream: Power BI automatically inherits them in reports.</p>
 				</section>
 
 				<section data-background-image="presentation/assets/background/reading-a-book.jpg" data-background-opacity="0.2">
 					<h3>Auditing</h3>
-					<p>SQL Server has a built-in auditing capability that allows you to track events and write them to a file,
-						the Windows Security log, or the Windows Application log. This is useful for tracking access to sensitive data,
-						including reads and writes.
-					</p>
-					<p>I recommend keeping these audits narrow in scope, as they can slow down performance on busy servers.</p>
+					<p>SQL Server Audit tracks events and writes them to a file, the Security log, or the Application log. Useful for tracking reads and writes to sensitive data.</p>
+					<p>Keep audits narrow in scope. Broad auditing can noticeably slow down busy servers.</p>
 				</section>
 
 				<section data-background-image="presentation/assets/background/sketch.jpg" data-background-opacity="0.2">
 					<h3>Module Signing</h3>
-					<p>Module signing allows you to add fine-grained permissions to modules (stored procedures, triggers, assemblies, etc.). It lets you offer
-						a secure way of performing some operations without giving users full permissions to the underlying objects.</p>
+					<p>Module signing lets you grant fine-grained permissions to stored procedures, triggers, and assemblies. Users can perform specific operations without needing direct access to the underlying objects.</p>
 
 					<p>More information is available at <a href="https://modulesigning.info">modulesigning.info</a>.</p>
 				</section>
 
 				<section data-background-image="presentation/assets/background/paper-stack.jpg" data-background-opacity="0.2">
 					<h3>Ledger Tables</h3>
-					<p>Ledger tables are a way of preserving historical data. All prior versions of data will remain available in a table and the 
-						functionality uses blockchain technology to track these changes. This capability is valid for forensic analysis and auditing purposes.
-					</p>
+					<p>Ledger tables preserve a cryptographically verifiable history of all data changes. This is useful for forensic analysis and regulatory auditing.</p>
 					<p>Two ledger options are available on tables: append-only or updatable.</p>
 					<p>SQL Server also has a ledger verification process to ensure that nobody has tampered with the cryptographically secure hashes.</p>
 				</section>
 
 				<section data-background-image="presentation/assets/background/monkey-thinking.jpg" data-background-opacity="0.2">
 					<h3>Is Ledger What You Need?</h3>
-					
+
 					<ul>
 						<li>Ledger databases cannot be converted back to non-ledger databases</li>
 						<li>Non-ledger tables cannot be converted to ledger tables later</li>
@@ -869,30 +803,25 @@
 					</ul>
 				</section>
 
-				<section data-background-image="presentation/assets/background/connections.jpg" data-background-opacity="0.2">
-					<h3>Linked Servers vs PolyBase</h3>
-					<p>Linked servers are a mechanism in SQL Server that allows you to connect to a remote data source and access data.</p>
-
-					<p>PolyBase is Microsoft's technology for data virtualization.</p>
+				<section data-background-image="presentation/assets/background/paper-stack.jpg" data-background-opacity="0.2">
+					<h3>Ledger in SQL Server 2025</h3>
+					<p>SQL Server 2025 expands ledger capabilities:</p>
+					<ul>
+						<li><strong>Expanded compatibility:</strong> fewer restrictions on feature interactions, making ledger viable in more production scenarios</li>
+						<li><strong>Azure Confidential Ledger integration:</strong> store tamper-proof digests in Azure Confidential Ledger for independent verification</li>
+						<li><strong>Concrete use case:</strong> financial audit trails where regulators require cryptographic proof that historical records have not been altered post-fact</li>
+					</ul>
 				</section>
 
-				<section data-background-image="presentation/assets/background/muay-thai.jpg" data-background-opacity="0.2">
-					<h3>Linked Servers vs PolyBase</h3>
-					<p>You can connect to a linked server using your own AD credentials (assuming you have SPNs in place to deal with the Kerberos double-hop)
-						or using a fixed login. If you are using connection pooling through an app, you will almost assuredly use the fixed login.</p>
-
-					<p>PolyBase only allows a fixed login saved as a database scoped credential--you cannot forward your Active Directory credentials.</p>
-				</section>
-
-				<section data-background-image="presentation/assets/background/mismatch.jpg" data-background-opacity="0.2">
-					<h3>Linked Servers vs PolyBase</h3>
-					<p>When you connect to a linked server using a fixed login, every user gets the same set of permissions to all assets on the server. You cannot
-						set role-based access controls on a linked server.
-					</p>
-
-					<p>With PolyBase, you create assets as external tables. The downside is that you need to create separate external tables for each remote
-						table/view you want to access. But you can set permissions on these external tables, locking them down as desired.
-					</p>
+				<section data-background-image="presentation/assets/background/caution.jpg" data-background-opacity="0.2">
+					<h3>A Word on Dynamic Data Masking</h3>
+					<p>Dynamic Data Masking (DDM) obscures data in query results for users who do not have the UNMASK permission. It is <strong>not a security feature</strong>.</p>
+					<ul>
+						<li>Any user with ad-hoc query access can reverse most masks with simple techniques (e.g., casting, SUBSTRING, inequality comparisons)</li>
+						<li>DDM does not encrypt or protect the underlying data in any way</li>
+						<li>It is a convenience feature for limiting casual exposure, not a defense against determined users</li>
+					</ul>
+					<p>If you need to protect data from users who can query the database, use column-level encryption or Always Encrypted instead.</p>
 				</section>
 
 				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
@@ -912,8 +841,7 @@
 				<section data-background-image="presentation/assets/background/risk.jpg" data-background-opacity="0.2">
 					<h3>Vulnerability Assessment</h3>
 					<p>Microsoft Defender for Cloud includes a variety of common vulnerability checks for the SQL Server family of products.</p>
-					<p>This feature requires that you use Azure SQL Database, Azure SQL Managed Instance, SQL Server on an Azure virtual machine,
-						or SQL Server on an Azure Arc-enabled server.
+					<p>This feature requires that you use Azure SQL Database, Azure SQL Managed Instance, SQL Server on an Azure virtual machine, or SQL Server on an Azure Arc-enabled server.
 					</p>
 				</section>
 
@@ -940,9 +868,23 @@
 				<section data-background-image="presentation/assets/background/wrappingup.jpg" data-background-opacity="0.2">
 					<h3>Wrapping Up</h3>
 
-					<p>Over the course of this talk, have looked at a variety of things we can do to improve the security of a SQL Server instance. This is not a complete list of everything you need to know for security, but should act as a good starting point in conjunction with permissions management and writing secure code.</p>
+					<p>Today you got:</p>
+					<ol>
+						<li>A defense-in-depth view of the SQL Server security surface</li>
+						<li>Live demos and scripts you can run in your environment</li>
+						<li>A hardening checklist to take back to work</li>
+					</ol>
+					<p>This is a starting point. Combine it with permissions management and secure application development for a complete security posture.</p>
 				</section>
-				
+
+				<section data-background-image="presentation/assets/background/checklist.jpg" data-background-opacity="0.2">
+					<h3>Bring Back to Your Environment</h3>
+
+					<p>A hardening checklist is available in the repository:</p>
+					<p><a href="https://csmore.info/on/securesql">csmore.info/on/securesql</a> &rarr; <code>CHECKLIST.md</code></p>
+					<p>It covers everything from today's talk, plus additional steps we didn't have time for (permissions review, sa account, SQL injection prevention, DR planning, and more).</p>
+				</section>
+
 				<section data-background-image="presentation/assets/image/Bubbles.jpg" data-background-opacity="0.4">
 					<h3>Wrapping Up</h3>
 					
