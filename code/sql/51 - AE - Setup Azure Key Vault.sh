@@ -3,6 +3,8 @@
 # Run this script to create the Azure resources needed for
 # Always Encrypted with AKV as the Column Master Key store.
 #
+# This script is idempotent — safe to run multiple times.
+#
 # Prerequisites: az cli installed and logged in (az login)
 
 set -e
@@ -10,28 +12,57 @@ set -e
 # --- Configuration ---
 RESOURCE_GROUP="rg-securesql-demo"
 LOCATION="eastus"
-VAULT_NAME="kv-securesql-$(openssl rand -hex 4)"
 KEY_NAME="AlwaysEncryptedCMK"
 APP_NAME="SecureSQLServerDemo"
+
+# Derive a stable vault name from the subscription ID
+SUB_ID=$(az account show --query id -o tsv)
+VAULT_SUFFIX=$(echo -n "$SUB_ID" | md5sum | cut -c1-8)
+VAULT_NAME="kv-securesql-${VAULT_SUFFIX}"
 
 echo "=== Creating Resource Group ==="
 az group create --name "$RESOURCE_GROUP" --location "$LOCATION" --output none
 
 echo "=== Creating Key Vault: $VAULT_NAME ==="
-az keyvault create \
-    --name "$VAULT_NAME" \
-    --resource-group "$RESOURCE_GROUP" \
-    --location "$LOCATION" \
-    --enable-rbac-authorization true \
-    --output none
+if az keyvault show --name "$VAULT_NAME" --resource-group "$RESOURCE_GROUP" &>/dev/null; then
+    echo "    Key Vault already exists, skipping."
+else
+    az keyvault create \
+        --name "$VAULT_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --location "$LOCATION" \
+        --enable-rbac-authorization true \
+        --output none
+fi
+
+VAULT_ID=$(az keyvault show --name "$VAULT_NAME" --query id -o tsv)
+CURRENT_USER_ID=$(az ad signed-in-user show --query id -o tsv)
+
+echo "=== Granting current user Key Vault Crypto Officer role ==="
+if az role assignment list --assignee "$CURRENT_USER_ID" --scope "$VAULT_ID" --role "Key Vault Crypto Officer" --query "[0].id" -o tsv | grep -q .; then
+    echo "    Role already assigned, skipping."
+else
+    az role assignment create \
+        --role "Key Vault Crypto Officer" \
+        --assignee-object-id "$CURRENT_USER_ID" \
+        --assignee-principal-type User \
+        --scope "$VAULT_ID" \
+        --output none
+    echo "=== Waiting for RBAC propagation ==="
+    sleep 30
+fi
 
 echo "=== Creating RSA Key (Column Master Key) ==="
-az keyvault key create \
-    --vault-name "$VAULT_NAME" \
-    --name "$KEY_NAME" \
-    --kty RSA \
-    --size 2048 \
-    --output none
+if az keyvault key show --vault-name "$VAULT_NAME" --name "$KEY_NAME" &>/dev/null; then
+    echo "    Key already exists, skipping."
+else
+    az keyvault key create \
+        --vault-name "$VAULT_NAME" \
+        --name "$KEY_NAME" \
+        --kty RSA \
+        --size 2048 \
+        --output none
+fi
 
 KEY_URL=$(az keyvault key show \
     --vault-name "$VAULT_NAME" \
@@ -39,8 +70,18 @@ KEY_URL=$(az keyvault key show \
     --query key.kid -o tsv)
 
 echo "=== Creating App Registration ==="
-APP_ID=$(az ad app create --display-name "$APP_NAME" --query appId -o tsv)
-az ad sp create --id "$APP_ID" --output none
+APP_ID=$(az ad app list --display-name "$APP_NAME" --query "[0].appId" -o tsv)
+if [ -n "$APP_ID" ]; then
+    echo "    App registration already exists, skipping."
+else
+    APP_ID=$(az ad app create --display-name "$APP_NAME" --query appId -o tsv)
+fi
+
+if az ad sp show --id "$APP_ID" &>/dev/null; then
+    echo "    Service principal already exists, skipping."
+else
+    az ad sp create --id "$APP_ID" --output none
+fi
 
 echo "=== Creating Client Secret ==="
 CLIENT_SECRET=$(az ad app credential reset \
@@ -51,24 +92,51 @@ CLIENT_SECRET=$(az ad app credential reset \
 TENANT_ID=$(az account show --query tenantId -o tsv)
 
 echo "=== Granting Key Vault Crypto User role ==="
-VAULT_ID=$(az keyvault show --name "$VAULT_NAME" --query id -o tsv)
 SP_OBJECT_ID=$(az ad sp show --id "$APP_ID" --query id -o tsv)
 
-az role assignment create \
-    --role "Key Vault Crypto User" \
-    --assignee-object-id "$SP_OBJECT_ID" \
-    --assignee-principal-type ServicePrincipal \
-    --scope "$VAULT_ID" \
-    --output none
+if az role assignment list --assignee "$SP_OBJECT_ID" --scope "$VAULT_ID" --role "Key Vault Crypto User" --query "[0].id" -o tsv | grep -q .; then
+    echo "    Role already assigned, skipping."
+else
+    az role assignment create \
+        --role "Key Vault Crypto User" \
+        --assignee-object-id "$SP_OBJECT_ID" \
+        --assignee-principal-type ServicePrincipal \
+        --scope "$VAULT_ID" \
+        --output none
+fi
 
-echo "=== Granting current user Key Vault Crypto Officer role ==="
-CURRENT_USER_ID=$(az ad signed-in-user show --query id -o tsv)
-az role assignment create \
-    --role "Key Vault Crypto Officer" \
-    --assignee-object-id "$CURRENT_USER_ID" \
-    --assignee-principal-type User \
-    --scope "$VAULT_ID" \
-    --output none
+# --- Write results to .env file for use by Python insert script ---
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/../ae/.env"
+
+# Create the ae directory if it doesn't exist
+mkdir -p "$(dirname "$ENV_FILE")"
+
+# Preserve SQL connection values if .env already exists, otherwise use defaults
+if [ -f "$ENV_FILE" ]; then
+    EXISTING_SERVER=$(grep -E '^SQL_SERVER=' "$ENV_FILE" | cut -d= -f2-)
+    EXISTING_DB=$(grep -E '^SQL_DATABASE=' "$ENV_FILE" | cut -d= -f2-)
+    EXISTING_USER=$(grep -E '^SQL_USER=' "$ENV_FILE" | cut -d= -f2-)
+    EXISTING_PASS=$(grep -E '^SQL_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)
+fi
+
+cat > "$ENV_FILE" <<ENVEOF
+# Always Encrypted - Connection & Azure Key Vault settings
+# Generated by 51 - AE - Setup Azure Key Vault.sh
+
+# SQL Server connection
+SQL_SERVER=${EXISTING_SERVER:-localhost,1433}
+SQL_DATABASE=${EXISTING_DB:-AETest}
+SQL_USER=${EXISTING_USER:-sa}
+SQL_PASSWORD=${EXISTING_PASS:-}
+
+# Azure Key Vault (populated by script 51)
+AKV_TENANT_ID=$TENANT_ID
+AKV_CLIENT_ID=$APP_ID
+AKV_CLIENT_SECRET=$CLIENT_SECRET
+AKV_KEY_URL=$KEY_URL
+AKV_VAULT_NAME=$VAULT_NAME
+ENVEOF
 
 echo ""
 echo "============================================"
@@ -84,9 +152,14 @@ echo "  Client ID:     $APP_ID"
 echo "  Client Secret: $CLIENT_SECRET"
 echo "  Vault Name:    $VAULT_NAME"
 echo ""
+echo "Values written to: $ENV_FILE"
+echo "  (Set SQL_PASSWORD in .env before running the Python insert script)"
+echo ""
 echo "Next steps:"
-echo "  1. Update KEY_PATH in script 50 with the URL above"
-echo "  2. Run 51 - AE - Provision Keys.ps1 to generate the CEK"
+echo "  1. Update KEY_PATH in script 53 with the URL above"
+echo "  2. Run 52 - AE - Provision Keys.ps1 to generate the CEK"
+echo "  3. Run the CREATE TABLE from script 53 (Step 1)"
+echo "  4. cd code/ae && uv run insert_sample_data.py"
 echo ""
 echo "To clean up when done:"
 echo "  az group delete --name $RESOURCE_GROUP --yes --no-wait"

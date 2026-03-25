@@ -1,43 +1,21 @@
 --Always Encrypted
---1 - Create Sample Database
---The purpose of this script is to create a sample AETest database
---and set up Always Encrypted with Azure Key Vault as the CMK store.
+--3 - Create Sample Database
+--The purpose of this script is to set up Always Encrypted
+--with Azure Key Vault as the CMK store in the AETest database.
 
 --PREREQUISITES:
---  Run code/sql/50 - AE - Setup Azure Key Vault.sh first to create
+--  Run 50 - AE - Create Database.sql to create the AETest database.
+--  Run code/sql/51 - AE - Setup Azure Key Vault.sh to create
 --  the Azure Key Vault, RSA key, and service principal.
 --  That script will output the KEY_PATH URL you need below.
 
---  Then run the PowerShell script 51 - AE - Provision Keys.ps1 to generate the Column
---  Encryption Key (CEK), which requires client-side access to AKV.
-
-USE [master]
-GO
-CREATE DATABASE AETest;
-GO
+--  Then run the PowerShell script 52 - AE - Provision Keys.ps1 to create the
+--  Column Master Key metadata and Column Encryption Key (CEK).
 
 USE [AETest]
 GO
 
---Step 1: Create the Column Master Key metadata.
---This is just a pointer to the key in Azure Key Vault.
---SQL Server never accesses AKV directly; clients use this URL.
---Replace the KEY_PATH with the output from 50.
-CREATE COLUMN MASTER KEY [AE_ColumnMasterKey]
-WITH
-(
-	KEY_STORE_PROVIDER_NAME = N'AZURE_KEY_VAULT',
-	KEY_PATH = N'https://YOUR_VAULT_NAME.vault.azure.net/keys/AlwaysEncryptedCMK/YOUR_KEY_VERSION'
-);
-GO
-
---Step 2: Create the Column Encryption Key.
---The CEK must be generated and wrapped by a client that has access
---to Azure Key Vault. Run 51 - AE - Provision Keys.ps1 to do this.
---That script will output a CREATE COLUMN ENCRYPTION KEY statement
---with the correct encrypted value. Run that output here.
-
---Step 3: Create a table with encrypted columns.
+--Step 1: Create a table with encrypted columns.
 --SSN uses Deterministic encryption (allows equality lookups).
 --MedicalNotes uses Randomized encryption (stronger security).
 --Deterministic string columns MUST use a BIN2 collation.
@@ -62,16 +40,19 @@ CREATE TABLE dbo.PatientRecords
 );
 GO
 
---Step 4: Insert sample data.
+--Step 2: Insert sample data.
 --IMPORTANT: You must insert data from a client with
 --"Column Encryption Setting=enabled" and access to AKV.
---From SSMS: connection dialog > Options > Additional Connection
---Parameters > add: Column Encryption Setting=enabled
---SSMS will encrypt the values client-side before sending to SQL Server.
-
---With an AE-enabled SSMS connection and parameterization enabled:
---  Query > Query Options > Execution > Advanced >
+--
+--Option A (SSMS on Windows):
+--  Connection dialog > Options > Additional Connection
+--  Parameters > add: Column Encryption Setting=enabled
+--  Then: Query > Query Options > Execution > Advanced >
 --  Enable Parameterization for Always Encrypted
+--
+--Option B (Linux / any platform):
+--  cd code/ae && uv run insert_sample_data.py
+--  (Requires .env with AKV credentials — see .env.example)
 DECLARE @FirstName NVARCHAR(50), @LastName NVARCHAR(50),
 		@SSN CHAR(11), @DOB DATE, @Notes NVARCHAR(MAX);
 

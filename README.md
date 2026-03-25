@@ -24,19 +24,19 @@ docker build -t securing-sql-server .
 Pass the required environment variables when starting the container:
 
 ```bash
-docker run -e "ACCEPT_EULA=Y" \
+docker run -d -e "ACCEPT_EULA=Y" \
   -e "MSSQL_SA_PASSWORD=YourStrongPassword!" \
   -e "MSSQL_PID=Developer" \
-  -p 1433:1433 \
+  -p 14330:1433 \
   --name securing-sql-server \
-  -d securing-sql-server
+  securing-sql-server
 ```
 
 Replace `YourStrongPassword!` with a password that meets the [SQL Server password policy](https://learn.microsoft.com/en-us/sql/relational-databases/security/password-policy) (at least 10 characters, including uppercase, lowercase, digits, and symbols).
 
 ### Demo Scripts
 
-Once the container is running, demo scripts are available inside the container at `/var/opt/mssql/scripts/sql/`. You can connect to the SQL Server instance on `localhost,1433` using the `sa` account and run the scripts in order:
+Once the container is running, demo scripts are available inside the container at `/var/opt/mssql/scripts/sql/`. You can connect to the SQL Server instance on `localhost,14330` using the `sa` account and run the scripts in order:
 
 | Scripts | Topic |
 |---------|-------|

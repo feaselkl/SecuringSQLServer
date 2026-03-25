@@ -38,5 +38,10 @@ GO
 
 --Back up the backup encryption certificate we created.
 --We could create a private key with password here as well.
-BACKUP CERTIFICATE [BackupEncryptionCertificate] TO FILE = '/tmp/BackupEncryptionCertificate.cert';
+BACKUP CERTIFICATE [BackupEncryptionCertificate] 
+    TO FILE = '/tmp/BackupEncryptionCertificate.cert'
+    WITH PRIVATE KEY (
+        FILE = '/tmp/BackupEncryptionCertificate.key',
+        ENCRYPTION BY PASSWORD = 'Some!Str@ngPasswordHere'
+    );
 GO

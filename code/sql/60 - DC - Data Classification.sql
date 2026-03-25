@@ -32,7 +32,7 @@ GO
 --Step 2: Add sensitivity classifications to columns.
 --These use the built-in information types and labels
 --from the SQL Information Protection policy.
-ADD SENSITIVITY CLASSIFICATION TO dbo.TestTable.Col1
+ADD SENSITIVITY CLASSIFICATION TO dbo.TestTable.SomePadding
 WITH (
 	LABEL = 'Confidential',
 	LABEL_ID = '331f0b13-76b5-2f1b-a77b-def5a73c73c2',
@@ -70,7 +70,7 @@ GO
 --  </sensitivity_attributes>
 
 --Step 5: You can also remove a classification.
---DROP SENSITIVITY CLASSIFICATION FROM dbo.TestTable.Col1;
+--DROP SENSITIVITY CLASSIFICATION FROM dbo.TestTable.SomePadding;
 --GO
 
 --Common information types and their IDs:

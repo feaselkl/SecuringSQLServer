@@ -1,5 +1,7 @@
 FROM mcr.microsoft.com/mssql/server:2025-latest
 
+USER root
+
 # Create directories for demo scripts inside the container
 RUN mkdir -p /var/opt/mssql/scripts/sql /var/opt/mssql/scripts/tls
 
@@ -10,6 +12,8 @@ COPY tls/ /var/opt/mssql/scripts/tls/
 # Ensure the mssql user can read the scripts
 RUN chown -R mssql:root /var/opt/mssql/scripts && \
     chmod -R 0550 /var/opt/mssql/scripts
+
+USER mssql
 
 EXPOSE 1433
 

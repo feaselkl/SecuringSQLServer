@@ -26,6 +26,9 @@ GO
 --SSMS will use its AKV provider to decrypt. You must be
 --authenticated to Azure (SSMS uses your Azure account).
 --Now the same query shows plaintext values.
+--
+--On Linux: cd code/ae && uv run query_encrypted_data.py
+--  runs all three tests with side-by-side output.
 
 --Test 3: With an AE-enabled connection, try a parameterized
 --equality lookup on the deterministically encrypted SSN column.
